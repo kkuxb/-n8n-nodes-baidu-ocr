@@ -297,9 +297,27 @@ export class BaiduOcr implements INodeType {
 						const binaryData = items[i].binary![propName];
 						const buffer = await this.helpers.getBinaryDataBuffer(i, propName);
 						const base64Data = buffer.toString('base64');
-						const isPdf = isPdfFile(binaryData.mimeType, binaryData.fileName);
+
+						// 检查文件格式
+						const formatCheck = checkFileFormat(binaryData.mimeType, binaryData.fileName);
+						if (!formatCheck.supported) {
+							throw new NodeOperationError(
+								this.getNode(),
+								formatCheck.errorMessage || `不支持的文件格式: ${formatCheck.fileType}`,
+							);
+						}
+
+						const isPdf = formatCheck.fileType === 'pdf';
 
 						if (isPdf) {
+							// 检查当前识别类型是否支持 PDF
+							if (!operationSupportsPdf(operation)) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`「${getOperationDisplayName(operation)}」不支持 PDF 格式，仅支持图片格式（JPG、PNG、BMP）。请将 PDF 转换为图片后再上传。`,
+								);
+							}
+
 							// PDF 文件处理
 							const pageNumbers = await parsePdfPageRange(
 								pdfPageRange,
@@ -537,6 +555,75 @@ function isPdfFile(mimeType?: string, fileName?: string): boolean {
 		return true;
 	}
 	return false;
+}
+
+// Helper function to check if file format is supported
+function checkFileFormat(mimeType?: string, fileName?: string): { supported: boolean; fileType: string; errorMessage?: string } {
+	const name = fileName?.toLowerCase() || '';
+	const mime = mimeType?.toLowerCase() || '';
+
+	// 不支持的办公文档格式
+	const unsupportedOfficeFormats = [
+		{ ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', name: 'Excel (.xlsx)' },
+		{ ext: '.xls', mime: 'application/vnd.ms-excel', name: 'Excel (.xls)' },
+		{ ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', name: 'Word (.docx)' },
+		{ ext: '.doc', mime: 'application/msword', name: 'Word (.doc)' },
+		{ ext: '.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', name: 'PowerPoint (.pptx)' },
+		{ ext: '.ppt', mime: 'application/vnd.ms-powerpoint', name: 'PowerPoint (.ppt)' },
+		{ ext: '.csv', mime: 'text/csv', name: 'CSV (.csv)' },
+	];
+
+	for (const format of unsupportedOfficeFormats) {
+		if (name.endsWith(format.ext) || mime.includes(format.mime)) {
+			return {
+				supported: false,
+				fileType: format.name,
+				errorMessage: `不支持 ${format.name} 格式。百度 OCR API 仅支持图片格式（JPG、PNG、BMP）和 PDF 文档。如需识别文档内容，请将其转换为图片或 PDF 后再上传。`,
+			};
+		}
+	}
+
+	// PDF 格式
+	if (isPdfFile(mimeType, fileName)) {
+		return { supported: true, fileType: 'pdf' };
+	}
+
+	// 其他格式视为图片
+	return { supported: true, fileType: 'image' };
+}
+
+// Helper function to check if operation supports PDF
+function operationSupportsPdf(operation: string): boolean {
+	// 支持 PDF 的识别类型
+	const pdfSupportedOperations = [
+		'generalBasic',      // 通用文字识别（标准版）
+		'accurateBasic',     // 通用文字识别（高精度版）
+		'table',             // 表格文字识别
+		'businessLicense',   // 营业执照识别
+		'vatInvoice',        // 增值税发票识别
+		'invoice',           // 通用机打发票识别
+	];
+	return pdfSupportedOperations.includes(operation);
+}
+
+// Helper function to get operation display name in Chinese
+function getOperationDisplayName(operation: string): string {
+	const names: { [key: string]: string } = {
+		generalBasic: '通用文字识别（标准版）',
+		accurateBasic: '通用文字识别（高精度版）',
+		table: '表格文字识别',
+		idcard: '身份证识别',
+		bankcard: '银行卡识别',
+		businessLicense: '营业执照识别',
+		vatInvoice: '增值税发票识别',
+		quotaInvoice: '定额发票识别',
+		invoice: '通用机打发票识别',
+		drivingLicense: '驾驶证识别',
+		vehicleLicense: '行驶证识别',
+		licensePlate: '车牌号识别',
+		passport: '护照识别',
+	};
+	return names[operation] || operation;
 }
 
 // Helper function to parse PDF page range and return array of page numbers
