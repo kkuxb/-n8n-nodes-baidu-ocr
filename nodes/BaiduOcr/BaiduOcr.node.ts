@@ -146,7 +146,20 @@ export class BaiduOcr implements INodeType {
 						inputType: ['binaryData'],
 					},
 				},
-				description: '包含图片的二进制属性名，支持多个属性名（用逗号分隔），节点会自动检测哪些属性存在文件',
+				description: '包含图片或PDF的二进制属性名，支持多个属性名（用逗号分隔），节点会自动检测文件格式',
+			},
+			// PDF page range
+			{
+				displayName: 'PDF页码范围',
+				name: 'pdfPageRange',
+				type: 'string',
+				default: 'all',
+				displayOptions: {
+					show: {
+						inputType: ['binaryData'],
+					},
+				},
+				description: 'PDF页码范围：all=全部页面，1=第1页，1-5=第1到5页，1,3,5=第1、3、5页。图片文件会忽略此设置',
 			},
 			// Image URL
 			{
@@ -259,6 +272,7 @@ export class BaiduOcr implements INodeType {
 						.split(',')
 						.map(name => name.trim())
 						.filter(name => name);
+					const pdfPageRange = this.getNodeParameter('pdfPageRange', i) as string;
 
 					// 检测哪些属性存在二进制数据
 					const validProperties: string[] = [];
@@ -280,19 +294,57 @@ export class BaiduOcr implements INodeType {
 					const allTexts: string[] = [];
 
 					for (const propName of validProperties) {
+						const binaryData = items[i].binary![propName];
 						const buffer = await this.helpers.getBinaryDataBuffer(i, propName);
-						const imageData = buffer.toString('base64');
-						const requestBody: IDataObject = { image: imageData };
+						const base64Data = buffer.toString('base64');
+						const isPdf = isPdfFile(binaryData.mimeType, binaryData.fileName);
 
-						// 添加额外参数
-						addExtraParams(this, i, operation, requestBody);
+						if (isPdf) {
+							// PDF 文件处理
+							const pageNumbers = await parsePdfPageRange(
+								pdfPageRange,
+								this,
+								endpoint,
+								accessToken,
+								base64Data,
+							);
 
-						const response = await callBaiduOcrApi.call(this, endpoint, accessToken, requestBody);
-						const processedResponse = processOcrResponse(response, operation);
+							for (const pageNum of pageNumbers) {
+								const requestBody: IDataObject = {
+									pdf_file: base64Data,
+									pdf_file_num: pageNum,
+								};
+								addExtraParams(this, i, operation, requestBody);
 
-						allResults.push({ propertyName: propName, ...processedResponse });
-						if (processedResponse.text) {
-							allTexts.push(processedResponse.text as string);
+								const response = await callBaiduOcrApi.call(this, endpoint, accessToken, requestBody);
+								const processedResponse = processOcrResponse(response, operation);
+
+								allResults.push({
+									propertyName: propName,
+									fileType: 'pdf',
+									pageNumber: pageNum,
+									...processedResponse,
+								});
+								if (processedResponse.text) {
+									allTexts.push(processedResponse.text as string);
+								}
+							}
+						} else {
+							// 图片文件处理
+							const requestBody: IDataObject = { image: base64Data };
+							addExtraParams(this, i, operation, requestBody);
+
+							const response = await callBaiduOcrApi.call(this, endpoint, accessToken, requestBody);
+							const processedResponse = processOcrResponse(response, operation);
+
+							allResults.push({
+								propertyName: propName,
+								fileType: 'image',
+								...processedResponse,
+							});
+							if (processedResponse.text) {
+								allTexts.push(processedResponse.text as string);
+							}
 						}
 					}
 
@@ -474,4 +526,87 @@ function processOcrResponse(response: IDataObject, operation: string): IDataObje
 	}
 
 	return result;
+}
+
+// Helper function to check if file is PDF
+function isPdfFile(mimeType?: string, fileName?: string): boolean {
+	if (mimeType === 'application/pdf') {
+		return true;
+	}
+	if (fileName && fileName.toLowerCase().endsWith('.pdf')) {
+		return true;
+	}
+	return false;
+}
+
+// Helper function to parse PDF page range and return array of page numbers
+async function parsePdfPageRange(
+	pageRange: string,
+	context: IExecuteFunctions,
+	endpoint: string,
+	accessToken: string,
+	pdfBase64: string,
+): Promise<number[]> {
+	const range = pageRange.trim().toLowerCase();
+
+	// 如果是 "all"，需要先获取 PDF 总页数
+	if (range === 'all') {
+		const totalPages = await getPdfTotalPages(context, endpoint, accessToken, pdfBase64);
+		return Array.from({ length: totalPages }, (_, i) => i + 1);
+	}
+
+	// 解析页码范围
+	const pageNumbers: number[] = [];
+	const parts = range.split(',');
+
+	for (const part of parts) {
+		const trimmed = part.trim();
+		if (trimmed.includes('-')) {
+			// 范围格式: 1-5
+			const [start, end] = trimmed.split('-').map(n => parseInt(n.trim(), 10));
+			if (!isNaN(start) && !isNaN(end) && start <= end) {
+				for (let i = start; i <= end; i++) {
+					if (!pageNumbers.includes(i)) {
+						pageNumbers.push(i);
+					}
+				}
+			}
+		} else {
+			// 单个页码
+			const num = parseInt(trimmed, 10);
+			if (!isNaN(num) && !pageNumbers.includes(num)) {
+				pageNumbers.push(num);
+			}
+		}
+	}
+
+	return pageNumbers.length > 0 ? pageNumbers.sort((a, b) => a - b) : [1];
+}
+
+// Helper function to get PDF total pages by making a test request
+async function getPdfTotalPages(
+	context: IExecuteFunctions,
+	endpoint: string,
+	accessToken: string,
+	pdfBase64: string,
+): Promise<number> {
+	const baseUrl = 'https://aip.baidubce.com';
+	const response = await context.helpers.request({
+		method: 'POST',
+		url: `${baseUrl}${endpoint}`,
+		qs: { access_token: accessToken },
+		form: {
+			pdf_file: pdfBase64,
+			pdf_file_num: 1,
+		},
+		json: true,
+	});
+
+	// 百度 OCR API 返回中包含 pdf_file_size 字段表示总页数
+	if (response.pdf_file_size) {
+		return response.pdf_file_size as number;
+	}
+
+	// 如果没有返回总页数，默认返回 1
+	return 1;
 }
