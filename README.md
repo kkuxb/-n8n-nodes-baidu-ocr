@@ -1,68 +1,68 @@
 # n8n-nodes-baidu-ocr
 
-This is an n8n community node for [Baidu Cloud OCR API](https://cloud.baidu.com/product/ocr). It allows you to recognize text from images and documents using Baidu's powerful OCR services.
+这是一个用于 [百度智能云 OCR API](https://cloud.baidu.com/product/ocr) 的 n8n 社区节点。它可以让你使用百度强大的 OCR 服务从图片和文档中识别文字。
 
-[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
+[n8n](https://n8n.io/) 是一个 [公平代码许可](https://docs.n8n.io/reference/license/) 的工作流自动化平台。
 
-## Installation
+## 安装
 
-Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+请参考 n8n 社区节点文档中的 [安装指南](https://docs.n8n.io/integrations/community-nodes/installation/)。
 
 ```bash
 npm install n8n-nodes-baidu-ocr
 ```
 
-## Prerequisites
+## 前置条件
 
-You need a Baidu Cloud account with OCR API access:
+你需要一个开通了 OCR API 的百度智能云账号：
 
-1. Register at [Baidu Cloud](https://cloud.baidu.com/)
-2. Go to the [OCR Console](https://console.bce.baidu.com/ai/#/ai/ocr/overview/index)
-3. Create an application to get your **API Key** and **Secret Key**
+1. 在 [百度智能云](https://cloud.baidu.com/) 注册账号
+2. 进入 [OCR 控制台](https://console.bce.baidu.com/ai/#/ai/ocr/overview/index)
+3. 创建应用以获取 **API Key** 和 **Secret Key**
 
-## Supported Operations
+## 支持的操作
 
-| Operation | Description |
-|-----------|-------------|
-| General Basic | Standard text recognition |
-| General Accurate | High-accuracy text recognition |
-| Table Recognition | Recognize table structure and content |
-| ID Card | Chinese ID card recognition (front/back) |
-| Bank Card | Bank card recognition |
-| Business License | Business license recognition |
+| 操作 | 说明 |
+|------|------|
+| General Basic | 通用文字识别（标准版） |
+| General Accurate | 通用文字识别（高精度版） |
+| Table Recognition | 表格文字识别 |
+| ID Card | 身份证识别（正面/反面） |
+| Bank Card | 银行卡识别 |
+| Business License | 营业执照识别 |
 
-## Credentials
+## 凭证配置
 
-Configure the Baidu OCR API credentials in n8n:
+在 n8n 中配置百度 OCR API 凭证：
 
-- **API Key**: Your Baidu Cloud API Key
-- **Secret Key**: Your Baidu Cloud Secret Key
+- **API Key**: 你的百度智能云 API Key
+- **Secret Key**: 你的百度智能云 Secret Key
 
-## Usage
+## 使用方法
 
-### Input Types
+### 输入类型
 
-- **Binary Data**: Use image data from a previous node (e.g., HTTP Request, Read Binary File)
-- **URL**: Provide a direct URL to the image
+- **Binary Data**: 使用上游节点的图片二进制数据（如 HTTP Request、Read Binary File）
+- **URL**: 直接提供图片的 URL 地址
 
-### Example Workflow
+### 示例工作流
 
-1. Add a trigger node (e.g., Manual Trigger)
-2. Add a node to get the image (e.g., HTTP Request to download an image)
-3. Add the Baidu OCR node
-4. Configure the operation and input type
-5. Execute the workflow
+1. 添加触发器节点（如 Manual Trigger）
+2. 添加获取图片的节点（如 HTTP Request 下载图片）
+3. 添加 Baidu OCR 节点
+4. 配置操作类型和输入方式
+5. 执行工作流
 
-## Compatibility
+## 兼容性
 
-- n8n version: 1.0.0+
-- Node.js version: 18.0.0+
+- n8n 版本: 1.0.0+
+- Node.js 版本: 18.0.0+
 
-## Resources
+## 相关资源
 
-- [Baidu OCR API Documentation](https://cloud.baidu.com/doc/OCR/index.html)
-- [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
+- [百度 OCR API 文档](https://cloud.baidu.com/doc/OCR/index.html)
+- [n8n 社区节点文档](https://docs.n8n.io/integrations/community-nodes/)
 
-## License
+## 许可证
 
 [MIT](LICENSE)
