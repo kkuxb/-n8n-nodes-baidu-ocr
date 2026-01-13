@@ -1,22 +1,23 @@
 {
 	"name": "n8n-nodes-baidu-ocr",
-	"version": "0.3.1",
-	"description": "n8n community node for Baidu Cloud OCR API",
+	"version": "0.3.2",
+	"description": "通过API调用百度智能云OCR功能",
 	"keywords": [
+		"n8n-nodes-baidu-ocr",
 		"n8n-community-node-package",
 		"n8n",
 		"ocr",
 		"baidu",
-		"paddleocr"
+		"PaddleOcr"
 	],
 	"license": "MIT",
-	"homepage": "https://github.com/kkuxb/-n8n-nodes-baidu-ocr",
+	"homepage": "https://github.com/kkuxb/n8n-nodes-baidu-ocr",
 	"author": {
 		"name": "kkuxb"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/kkuxb/-n8n-nodes-baidu-ocr.git"
+		"url": "https://github.com/kkuxb/n8n-nodes-baidu-ocr.git"
 	},
 	"main": "index.js",
 	"scripts": {
